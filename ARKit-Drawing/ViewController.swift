@@ -36,7 +36,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     
     var objectMode: ObjectPlacementMode = .freeform {
         didSet {
-            reloadConfiguration()
+            reloadConfiguration(removeAnchors: false)
         }
     }
     
@@ -49,7 +49,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        reloadConfiguration()
+        reloadConfiguration(removeAnchors: false)
     }
     
     override func viewWillDisappear(_ animated: Bool) {
@@ -97,11 +97,18 @@ extension ViewController: OptionsViewControllerDelegate {
     }
     
     func undoLastObject() {
+        guard let lastNode = placedNodes.last else {
+            dismiss(animated: true, completion: nil)
+            return
+        }
         
+        lastNode.removeFromParentNode()
+        placedNodes.removeLast()
     }
     
     func resetScene() {
         dismiss(animated: true, completion: nil)
+        reloadConfiguration()
     }
 }
 
@@ -288,13 +295,28 @@ extension ViewController {
 
 // MARK: - Configuration Methods
 extension ViewController {
-    func reloadConfiguration() {
+    func reloadConfiguration(removeAnchors: Bool = true) {
         configuration.planeDetection = .horizontal
         
         let images = ARReferenceImage.referenceImages(inGroupNamed: "AR Resources", bundle: nil)
         
         configuration.detectionImages = objectMode == .image ? images : nil
         
-        sceneView.session.run(configuration)
+        let options: ARSession.RunOptions
+        
+        if removeAnchors {
+            options = [.removeExistingAnchors]
+//            for node in planeNodes {
+//                node.removeFromParentNode()
+//            }
+            planeNodes.removeAll()
+            
+            placedNodes.forEach { $0.removeFromParentNode() }
+            placedNodes.removeAll()
+        } else {
+            options = []
+        }
+        
+        sceneView.session.run(configuration, options: options)
     }
 }
